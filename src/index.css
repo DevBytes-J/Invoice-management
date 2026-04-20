@@ -1,0 +1,42 @@
+@import "tailwindcss";
+@import "@fontsource/league-spartan/400.css";
+@import "@fontsource/league-spartan/500.css";
+@import "@fontsource/league-spartan/700.css";
+@variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /* Primary */
+  --color-purple:        #7C5DFA;
+  --color-purple-light:  #9277FF;
+
+  /* Dark backgrounds */
+  --color-bg-dark:       #141625;
+  --color-card-dark:     #1E2139;
+  --color-input-dark:    #252945;
+
+  /* Neutral */
+  --color-slate:         #888EB0;
+  --color-periwinkle:    #7E88C3;
+  --color-lavender:      #DFE3FA;
+
+  /* Light backgrounds */
+  --color-bg-light:      #F8F8FB;
+
+  /* Absolute */
+  --color-midnight:      #0C0E16;
+
+  /* Status */
+  --color-red:           #EC5757;
+  --color-red-light:     #FF9797;
+}
+
+@layer base {
+  body {
+    @apply bg-bg-light dark:bg-bg-dark text-midnight dark:text-white transition-colors duration-300;
+    font-family: 'League Spartan', sans-serif;
+  }
+
+  button, a, label, select, [role="button"] {
+    cursor: pointer;
+  }
+}

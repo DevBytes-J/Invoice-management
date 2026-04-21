@@ -2,9 +2,7 @@
 
 A fully responsive invoice management application built with React, TypeScript, and Tailwind CSS.
 
-## Live Demo
-
-> Deploy to Vercel or Netlify and add the URL here.
+[View live](https://invoice-management-six-sand.vercel.app/)
 
 ## Setup
 

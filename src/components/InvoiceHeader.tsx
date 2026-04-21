@@ -46,12 +46,22 @@ export default function InvoiceHeader({ total, onNewInvoice, selected, onFilterC
             <div className="absolute top-9 left-1/2 -translate-x-1/2 w-48 bg-white dark:bg-[#252945] rounded-lg shadow-2xl p-6 space-y-4 z-20">
               {ALL_STATUSES.map(s => (
                 <label key={s} className="flex items-center gap-3 cursor-pointer group">
-                  <input
-                    type="checkbox"
-                    checked={selected.includes(s)}
-                    onChange={() => toggleFilter(s)}
-                    className="w-4 h-4 rounded accent-[#7C5DFA] cursor-pointer"
-                  />
+                  <span className={`w-4 h-4 rounded flex items-center justify-center border-2 transition-colors flex-shrink-0
+                    ${selected.includes(s)
+                      ? 'bg-[#7C5DFA] border-[#7C5DFA]'
+                      : 'bg-white dark:bg-[#1E2139] border-[#DFE3FA] dark:border-[#DFE3FA] group-hover:border-[#7C5DFA] group-hover:bg-[#DFE3FA]'}`}>
+                    <input
+                      type="checkbox"
+                      checked={selected.includes(s)}
+                      onChange={() => toggleFilter(s)}
+                      className="sr-only"
+                    />
+                    {selected.includes(s) && (
+                      <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                        <path d="M1 4l2.5 2.5L9 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    )}
+                  </span>
                   <span className="capitalize font-bold text-sm text-[#0C0E16] dark:text-white group-hover:text-[#7C5DFA] transition-colors">
                     {s}
                   </span>

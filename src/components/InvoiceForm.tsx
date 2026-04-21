@@ -37,9 +37,10 @@ export default function InvoiceForm({ initial, onSave, onSaveDraft, onClose }: P
   const [createdAt, setCreatedAt] = useState(initial?.createdAt ?? today);
   const [paymentTerms, setPaymentTerms] = useState(initial?.paymentTerms ?? 30);
   const [description, setDescription] = useState(initial?.description ?? '');
-  const [items, setItems] = useState<InvoiceItem[]>(initial?.items?.length ? initial.items : [emptyItem()]);
+  const [items, setItems] = useState<InvoiceItem[]>(initial?.items?.length ? initial.items : [emptyItem(), emptyItem()]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const firstRef = useRef<HTMLInputElement>(null);
+  const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => { firstRef.current?.focus(); }, []);
   useEffect(() => {
@@ -146,13 +147,13 @@ export default function InvoiceForm({ initial, onSave, onSaveDraft, onClose }: P
         lg:ml-[103px] lg:rounded-r-[20px]
         overflow-hidden">
 
-        <div className="px-6 lg:px-14 pt-14 pb-6 bg-white dark:bg-[#141625]">
+        <div className="px-6 lg:px-14 pt-[88px] lg:pt-14 pb-6 bg-white dark:bg-[#141625]">
           <h1 className="text-2xl font-bold text-[#0C0E16] dark:text-white">
             {initial ? `Edit #${initial.id}` : 'New Invoice'}
           </h1>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 lg:px-14 pb-4">
+        <div className="flex-1 overflow-y-auto px-6 lg:px-14 pb-4" onScroll={e => setScrolled((e.target as HTMLElement).scrollTop > 0)}>
           <div className="space-y-10">
             <section>
               <h3 className="text-[#7C5DFA] font-bold text-sm mb-4">Bill From</h3>
@@ -200,7 +201,7 @@ export default function InvoiceForm({ initial, onSave, onSaveDraft, onClose }: P
               <h3 className="text-lg font-bold text-[#777F98] mb-4">Item List</h3>
               {errors.items && <p className="text-[#EC5757] text-xs mb-3">{errors.items}</p>}
 
-              <div className="space-y-4">
+              <div className="space-y-[72px] lg:space-y-4">
                 <div className="hidden lg:grid grid-cols-[1fr_64px_100px_80px_24px] gap-4">
                   {['Item Name', 'Qty.', 'Price', 'Total', ''].map(h => (
                     <span key={h} className={lbl}>{h}</span>
@@ -208,60 +209,64 @@ export default function InvoiceForm({ initial, onSave, onSaveDraft, onClose }: P
                 </div>
 
                 {items.map((item, i) => (
-                  <div key={item.id} className="grid grid-cols-[1fr_64px_100px_80px_24px] gap-4 items-center">
+                  <div key={item.id} className="flex flex-col lg:grid lg:grid-cols-[1fr_64px_100px_80px_24px] gap-4">
+                    {/* Item Name — full width on mobile */}
                     <div>
                       <label className="lg:hidden text-[11px] text-[#7E88C3] mb-1 block">Item Name</label>
                       <input aria-label="Item name" className={inp(errors[`item.${i}.name`])}
                         value={item.name} onChange={e => updateItem(i, 'name', e.target.value)} />
                     </div>
-                    <div>
-                      <label className="lg:hidden text-[11px] text-[#7E88C3] mb-1 block">Qty.</label>
-                      <input aria-label="Quantity" type="number" min={1} className={inp(errors[`item.${i}.qty`])}
-                        value={item.quantity} onChange={e => updateItem(i, 'quantity', Number(e.target.value))} />
+                    {/* Qty / Price / Total / Delete — row on mobile */}
+                    <div className="grid grid-cols-[64px_100px_1fr_24px] lg:contents gap-4 items-center">
+                      <div>
+                        <label className="lg:hidden text-[11px] text-[#7E88C3] mb-1 block">Qty.</label>
+                        <input aria-label="Quantity" type="number" min={1} className={inp(errors[`item.${i}.qty`])}
+                          value={item.quantity} onChange={e => updateItem(i, 'quantity', Number(e.target.value))} />
+                      </div>
+                      <div>
+                        <label className="lg:hidden text-[11px] text-[#7E88C3] mb-1 block">Price</label>
+                        <input aria-label="Price" type="number" min={0} step={0.01} className={inp(errors[`item.${i}.price`])}
+                          value={item.price} onChange={e => updateItem(i, 'price', Number(e.target.value))} />
+                      </div>
+                      <div>
+                        <label className="lg:hidden text-[11px] text-[#7E88C3] mb-1 block">Total</label>
+                        <p className="text-[#888EB0] dark:text-[#DFE3FA] font-bold text-sm pt-3">
+                          {(item.quantity * item.price).toFixed(2)}
+                        </p>
+                      </div>
+                      <button aria-label="Remove item" onClick={() => setItems(p => p.filter((_, idx) => idx !== i))}
+                        className="text-[#888EB0] hover:text-[#EC5757] transition-colors mt-3">
+                        <svg width="13" height="16" viewBox="0 0 13 16" fill="currentColor">
+                          <path d="M11.583 3.556v10.666c0 .982-.795 1.778-1.777 1.778H2.694a1.777 1.777 0 01-1.777-1.778V3.556h10.666zM8.473 0l.888.889H13v1.778H0V.889h3.64L4.528 0h3.945z"/>
+                        </svg>
+                      </button>
                     </div>
-                    <div>
-                      <label className="lg:hidden text-[11px] text-[#7E88C3] mb-1 block">Price</label>
-                      <input aria-label="Price" type="number" min={0} step={0.01} className={inp(errors[`item.${i}.price`])}
-                        value={item.price} onChange={e => updateItem(i, 'price', Number(e.target.value))} />
-                    </div>
-                    <div>
-                      <label className="lg:hidden text-[11px] text-[#7E88C3] mb-1 block">Total</label>
-                      <p className="text-[#888EB0] dark:text-[#DFE3FA] font-bold text-sm pt-3">
-                        {(item.quantity * item.price).toFixed(2)}
-                      </p>
-                    </div>
-                    <button aria-label="Remove item" onClick={() => setItems(p => p.filter((_, idx) => idx !== i))}
-                      className="text-[#888EB0] hover:text-[#EC5757] transition-colors mt-3">
-                      <svg width="13" height="16" viewBox="0 0 13 16" fill="currentColor">
-                        <path d="M11.583 3.556v10.666c0 .982-.795 1.778-1.777 1.778H2.694a1.777 1.777 0 01-1.777-1.778V3.556h10.666zM8.473 0l.888.889H13v1.778H0V.889h3.64L4.528 0h3.945z"/>
-                      </svg>
-                    </button>
                   </div>
                 ))}
               </div>
 
               <button onClick={() => setItems(p => [...p, emptyItem()])}
-                className="mt-6 w-full py-4 rounded-full bg-[#F9FAFE] dark:bg-[#252945] text-[#7E88C3] dark:text-[#DFE3FA] font-bold text-sm hover:bg-[#DFE3FA] dark:hover:bg-[#0C0E16] transition-colors">
+                className="mt-16 lg:mt-6 w-full py-4 rounded-full bg-[#F9FAFE] dark:bg-[#252945] text-[#7E88C3] dark:text-[#DFE3FA] font-bold text-sm hover:bg-[#DFE3FA] dark:hover:bg-[#0C0E16] transition-colors">
                 + Add New Item
               </button>
             </section>
           </div>
         </div>
 
-        <div className="px-6 lg:px-14 py-5 bg-white dark:bg-[#141625] shadow-[0_-8px_24px_rgba(0,0,0,0.1)] flex items-center gap-2">
+        <div className={`mt-8 px-6 lg:px-14 py-8 bg-white dark:bg-[#141625] transition-shadow ${scrolled ? 'shadow-[0_-8px_24px_rgba(0,0,0,0.1)]' : ''} flex items-center gap-2`}>
           {!initial ? (
             <>
               <button onClick={onClose}
-                className="px-6 py-4 rounded-full bg-[#F9FAFE] dark:bg-[#252945] text-[#7E88C3] dark:text-[#DFE3FA] font-bold text-sm hover:bg-[#DFE3FA] transition-colors">
+                className="px-[15px] py-[12px] lg:px-6 lg:py-4 rounded-full bg-[#F9FAFE] dark:bg-[#252945] text-[#7E88C3] dark:text-[#DFE3FA] font-bold text-sm hover:bg-[#DFE3FA] transition-colors">
                 Discard
               </button>
               <div className="flex-1" />
               <button onClick={() => onSaveDraft(build('draft'))}
-                className="px-6 py-4 rounded-full bg-[#373B53] text-[#888EB0] font-bold text-sm hover:bg-[#0C0E16] transition-colors">
+                className="px-[15px] py-[12px] lg:px-6 lg:py-4 rounded-full bg-[#373B53] text-[#888EB0] font-bold md:text-sm text-[12px] hover:bg-[#0C0E16] transition-colors">
                 Save as Draft
               </button>
               <button onClick={handleSend}
-                className="px-6 py-4 rounded-full bg-[#7C5DFA] text-white font-bold text-sm hover:bg-[#9277FF] transition-colors">
+                className="px-[15px] py-[12px] lg:px-6 lg:py-4 rounded-full bg-[#7C5DFA] text-white font-bold md:text-sm text-[12px] hover:bg-[#9277FF] transition-colors">
                 Save &amp; Send
               </button>
             </>
@@ -269,11 +274,11 @@ export default function InvoiceForm({ initial, onSave, onSaveDraft, onClose }: P
             <>
               <div className="flex-1" />
               <button onClick={onClose}
-                className="px-6 py-4 rounded-full bg-[#F9FAFE] dark:bg-[#252945] text-[#7E88C3] dark:text-[#DFE3FA] font-bold text-sm hover:bg-[#DFE3FA] transition-colors">
+                className="px-[15px] py-[12px] lg:px-6 lg:py-4 rounded-full bg-[#F9FAFE] dark:bg-[#252945] text-[#7E88C3] dark:text-[#DFE3FA] font-bold text-sm hover:bg-[#DFE3FA] transition-colors">
                 Cancel
               </button>
               <button onClick={handleSend}
-                className="px-6 py-4 rounded-full bg-[#7C5DFA] text-white font-bold text-sm hover:bg-[#9277FF] transition-colors">
+                className="px-[15px] py-[12px] lg:px-6 lg:py-4 rounded-full bg-[#7C5DFA] text-white font-bold text-sm hover:bg-[#9277FF] transition-colors">
                 Save Changes
               </button>
             </>

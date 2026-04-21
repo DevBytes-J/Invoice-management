@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { v4 as uuid } from 'uuid';
+import { FiChevronDown, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import type { Invoice, InvoiceItem, Address } from '../types';
 
 interface Props {
@@ -28,6 +29,185 @@ function calcTotal(items: InvoiceItem[]) {
   return items.reduce((s, i) => s + i.quantity * i.price, 0);
 }
 
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const TERMS = [{ v: 1, l: 'Net 1 Day' }, { v: 7, l: 'Net 7 Days' }, { v: 14, l: 'Net 14 Days' }, { v: 30, l: 'Net 30 Days' }];
+
+// ── shared input style ──────────────────────────────────────────────────────
+const inp = (err?: string) =>
+  `w-full px-4 py-3 rounded border text-sm font-bold text-[#0C0E16] dark:text-white bg-white dark:bg-[#1E2139] focus:outline-none transition-colors cursor-text ${err ? 'border-[#EC5757]' : 'border-[#DFE3FA] dark:border-[#252945] hover:border-[#7C5DFA] focus:border-[#7C5DFA]'}`;
+
+const lbl = 'block text-[13px] text-[#7E88C3] dark:text-[#DFE3FA] mb-2';
+
+// ── Field wrapper ───────────────────────────────────────────────────────────
+function Field({ label, id, error, children }: { label: string; id: string; error?: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-2">
+        <label htmlFor={id} className="text-[13px] text-[#7E88C3] dark:text-[#DFE3FA]">{label}</label>
+        {error && <span className="text-[11px] text-[#EC5757]">{error}</span>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// ── Address block ───────────────────────────────────────────────────────────
+function AddressFields({ prefix, value, onChange, errors }: {
+  prefix: string; value: Address; onChange: (a: Address) => void; errors: Record<string, string>;
+}) {
+  return (
+    <div className="space-y-4">
+      <Field label="Street Address" id={`${prefix}-street`} error={errors[`${prefix}.street`]}>
+        <input id={`${prefix}-street`} className={inp(errors[`${prefix}.street`])}
+          value={value.street} onChange={e => onChange({ ...value, street: e.target.value })} />
+      </Field>
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+        <Field label="City" id={`${prefix}-city`} error={errors[`${prefix}.city`]}>
+          <input id={`${prefix}-city`} className={inp(errors[`${prefix}.city`])}
+            value={value.city} onChange={e => onChange({ ...value, city: e.target.value })} />
+        </Field>
+        <Field label="Post Code" id={`${prefix}-postCode`} error={errors[`${prefix}.postCode`]}>
+          <input id={`${prefix}-postCode`} className={inp(errors[`${prefix}.postCode`])}
+            value={value.postCode} onChange={e => onChange({ ...value, postCode: e.target.value })} />
+        </Field>
+        <div className="col-span-2 lg:col-span-1">
+          <Field label="Country" id={`${prefix}-country`} error={errors[`${prefix}.country`]}>
+            <input id={`${prefix}-country`} className={inp(errors[`${prefix}.country`])}
+              value={value.country} onChange={e => onChange({ ...value, country: e.target.value })} />
+          </Field>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Custom date picker ──────────────────────────────────────────────────────
+function DatePicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const date = value ? new Date(value + 'T00:00:00') : new Date();
+  const [viewYear, setViewYear] = useState(date.getFullYear());
+  const [viewMonth, setViewMonth] = useState(date.getMonth());
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const firstDay = new Date(viewYear, viewMonth, 1).getDay();
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+
+  function prevMonth() {
+    if (viewMonth === 0) { setViewMonth(11); setViewYear(y => y - 1); }
+    else setViewMonth(m => m - 1);
+  }
+  function nextMonth() {
+    if (viewMonth === 11) { setViewMonth(0); setViewYear(y => y + 1); }
+    else setViewMonth(m => m + 1);
+  }
+  function selectDay(d: number) {
+    const mm = String(viewMonth + 1).padStart(2, '0');
+    const dd = String(d).padStart(2, '0');
+    onChange(`${viewYear}-${mm}-${dd}`);
+    setOpen(false);
+  }
+
+  const selectedDay = value ? new Date(value + 'T00:00:00') : null;
+  const isSelected = (d: number) =>
+    selectedDay &&
+    selectedDay.getFullYear() === viewYear &&
+    selectedDay.getMonth() === viewMonth &&
+    selectedDay.getDate() === d;
+
+  const displayLabel = value
+    ? `${String(new Date(value + 'T00:00:00').getDate()).padStart(2,'0')} ${MONTHS[new Date(value + 'T00:00:00').getMonth()]} ${new Date(value + 'T00:00:00').getFullYear()}`
+    : 'Select date';
+
+  return (
+    <div ref={ref} className="relative">
+      <button type="button" onClick={() => setOpen(o => !o)}
+        className={`w-full px-4 py-3 rounded border text-sm font-bold text-left flex justify-between items-center transition-colors cursor-pointer bg-white dark:bg-[#1E2139] text-[#0C0E16] dark:text-white ${open ? 'border-[#7C5DFA]' : 'border-[#DFE3FA] dark:border-[#252945] hover:border-[#7C5DFA]'}`}>
+        {displayLabel}
+        <FiChevronDown size={13} className={`text-[#7C5DFA] transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="absolute top-[calc(100%+8px)] left-0 z-30 bg-white dark:bg-[#252945] rounded-lg shadow-[0_10px_40px_rgba(0,0,0,0.2)] p-6 w-[260px]">
+          {/* Month/year nav */}
+          <div className="flex items-center justify-between mb-5">
+            <button type="button" onClick={prevMonth} className="text-[#7C5DFA] hover:opacity-70 cursor-pointer p-1">
+              <FiChevronLeft size={14} />
+            </button>
+            <span className="text-sm font-bold text-[#0C0E16] dark:text-white">
+              {MONTHS[viewMonth]} {viewYear}
+            </span>
+            <button type="button" onClick={nextMonth} className="text-[#7C5DFA] hover:opacity-70 cursor-pointer p-1">
+              <FiChevronRight size={14} />
+            </button>
+          </div>
+
+          {/* Day grid */}
+          <div className="grid grid-cols-7 gap-y-2">
+            {Array.from({ length: firstDay }).map((_, i) => <span key={`e${i}`} />)}
+            {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(d => (
+              <button key={d} type="button" onClick={() => selectDay(d)}
+                className={`text-xs font-bold w-7 h-7 rounded-full flex items-center justify-center cursor-pointer transition-colors
+                  ${isSelected(d)
+                    ? 'bg-[#7C5DFA] text-white'
+                    : 'text-[#0C0E16] dark:text-white hover:text-[#7C5DFA]'}`}>
+                {d}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Custom payment terms dropdown ───────────────────────────────────────────
+function TermsPicker({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const label = TERMS.find(t => t.v === value)?.l ?? 'Net 30 Days';
+
+  return (
+    <div ref={ref} className="relative">
+      <button type="button" onClick={() => setOpen(o => !o)}
+        className={`w-full px-4 py-3 rounded border text-sm font-bold text-left flex justify-between items-center transition-colors cursor-pointer bg-white dark:bg-[#1E2139] text-[#0C0E16] dark:text-white ${open ? 'border-[#7C5DFA]' : 'border-[#DFE3FA] dark:border-[#252945] hover:border-[#7C5DFA]'}`}>
+        {label}
+        <FiChevronDown size={13} className={`text-[#7C5DFA] transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="absolute top-[calc(100%+10px)] left-0 z-30 w-full bg-white dark:bg-[#252945] rounded-lg shadow-[0_10px_40px_rgba(0,0,0,0.2)] overflow-hidden">
+          {TERMS.map((t, i) => (
+            <button key={t.v} type="button" onClick={() => { onChange(t.v); setOpen(false); }}
+              className={`w-full px-4 py-4 text-sm font-bold text-left cursor-pointer transition-colors text-[#0C0E16] dark:text-white hover:text-[#7C5DFA]
+                ${i < TERMS.length - 1 ? 'border-b border-[#DFE3FA] dark:border-[#1E2139]' : ''}`}>
+              {t.l}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Main form ───────────────────────────────────────────────────────────────
 export default function InvoiceForm({ initial, onSave, onSaveDraft, onClose }: Props) {
   const today = new Date().toISOString().split('T')[0];
   const [senderAddress, setSenderAddress] = useState<Address>(initial?.senderAddress ?? emptyAddress());
@@ -37,10 +217,9 @@ export default function InvoiceForm({ initial, onSave, onSaveDraft, onClose }: P
   const [createdAt, setCreatedAt] = useState(initial?.createdAt ?? today);
   const [paymentTerms, setPaymentTerms] = useState(initial?.paymentTerms ?? 30);
   const [description, setDescription] = useState(initial?.description ?? '');
-  const [items, setItems] = useState<InvoiceItem[]>(initial?.items?.length ? initial.items : [emptyItem(), emptyItem()]);
+  const [items, setItems] = useState<InvoiceItem[]>(initial?.items?.length ? initial.items : [emptyItem()]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const firstRef = useRef<HTMLInputElement>(null);
-  const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => { firstRef.current?.focus(); }, []);
   useEffect(() => {
@@ -91,50 +270,6 @@ export default function InvoiceForm({ initial, onSave, onSaveDraft, onClose }: P
     setItems(p => p.map((item, idx) => idx === i ? { ...item, [field]: value } : item));
   }
 
-  const inp = (err?: string) =>
-    `w-full px-4 py-3 rounded border text-sm font-bold text-[#0C0E16] dark:text-white bg-white dark:bg-[#1E2139] focus:outline-none transition-colors ${err ? 'border-[#EC5757]' : 'border-[#DFE3FA] dark:border-[#252945] focus:border-[#7C5DFA]'}`;
-
-  const lbl = 'block text-[13px] text-[#7E88C3] dark:text-[#DFE3FA] mb-2';
-
-  function Field({ label, id, error, children }: { label: string; id: string; error?: string; children: React.ReactNode }) {
-    return (
-      <div>
-        <div className="flex justify-between items-center mb-2">
-          <label htmlFor={id} className="text-[13px] text-[#7E88C3] dark:text-[#DFE3FA]">{label}</label>
-          {error && <span className="text-[11px] text-[#EC5757]">{error}</span>}
-        </div>
-        {children}
-      </div>
-    );
-  }
-
-  function AddressFields({ prefix, value, onChange }: { prefix: string; value: Address; onChange: (a: Address) => void }) {
-    return (
-      <div className="space-y-4">
-        <Field label="Street Address" id={`${prefix}-street`} error={errors[`${prefix}.street`]}>
-          <input id={`${prefix}-street`} className={inp(errors[`${prefix}.street`])}
-            value={value.street} onChange={e => onChange({ ...value, street: e.target.value })} />
-        </Field>
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
-          <Field label="City" id={`${prefix}-city`} error={errors[`${prefix}.city`]}>
-            <input id={`${prefix}-city`} className={inp(errors[`${prefix}.city`])}
-              value={value.city} onChange={e => onChange({ ...value, city: e.target.value })} />
-          </Field>
-          <Field label="Post Code" id={`${prefix}-postCode`} error={errors[`${prefix}.postCode`]}>
-            <input id={`${prefix}-postCode`} className={inp(errors[`${prefix}.postCode`])}
-              value={value.postCode} onChange={e => onChange({ ...value, postCode: e.target.value })} />
-          </Field>
-          <div className="col-span-2 lg:col-span-1">
-            <Field label="Country" id={`${prefix}-country`} error={errors[`${prefix}.country`]}>
-              <input id={`${prefix}-country`} className={inp(errors[`${prefix}.country`])}
-                value={value.country} onChange={e => onChange({ ...value, country: e.target.value })} />
-            </Field>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="fixed inset-0 z-40 flex" role="dialog" aria-modal="true" aria-label={initial ? 'Edit invoice' : 'New invoice'}>
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
@@ -153,11 +288,11 @@ export default function InvoiceForm({ initial, onSave, onSaveDraft, onClose }: P
           </h1>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 lg:px-14 pb-4" onScroll={e => setScrolled((e.target as HTMLElement).scrollTop > 0)}>
+        <div className="flex-1 overflow-y-auto px-6 lg:px-14 pb-4">
           <div className="space-y-10">
             <section>
               <h3 className="text-[#7C5DFA] font-bold text-sm mb-4">Bill From</h3>
-              <AddressFields prefix="s" value={senderAddress} onChange={setSenderAddress} />
+              <AddressFields prefix="s" value={senderAddress} onChange={setSenderAddress} errors={errors} />
             </section>
 
             <section>
@@ -171,23 +306,16 @@ export default function InvoiceForm({ initial, onSave, onSaveDraft, onClose }: P
                   <input id="clientEmail" type="email" className={inp(errors.clientEmail)}
                     value={clientEmail} onChange={e => setClientEmail(e.target.value)} />
                 </Field>
-                <AddressFields prefix="c" value={clientAddress} onChange={setClientAddress} />
+                <AddressFields prefix="c" value={clientAddress} onChange={setClientAddress} errors={errors} />
               </div>
             </section>
 
             <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <Field label="Invoice Date" id="createdAt">
-                <input id="createdAt" type="date" className={inp()}
-                  value={createdAt} onChange={e => setCreatedAt(e.target.value)} />
+                <DatePicker value={createdAt} onChange={setCreatedAt} />
               </Field>
               <Field label="Payment Terms" id="paymentTerms">
-                <select id="paymentTerms" className={inp()}
-                  value={paymentTerms} onChange={e => setPaymentTerms(Number(e.target.value))}>
-                  <option value={1}>Net 1 Day</option>
-                  <option value={7}>Net 7 Days</option>
-                  <option value={14}>Net 14 Days</option>
-                  <option value={30}>Net 30 Days</option>
-                </select>
+                <TermsPicker value={paymentTerms} onChange={setPaymentTerms} />
               </Field>
               <div className="lg:col-span-2">
                 <Field label="Project Description" id="description" error={errors.description}>
@@ -210,17 +338,15 @@ export default function InvoiceForm({ initial, onSave, onSaveDraft, onClose }: P
 
                 {items.map((item, i) => (
                   <div key={item.id} className="flex flex-col lg:grid lg:grid-cols-[1fr_64px_100px_80px_24px] gap-4">
-                    {/* Item Name — full width on mobile */}
                     <div>
                       <label className="lg:hidden text-[11px] text-[#7E88C3] mb-1 block">Item Name</label>
                       <input aria-label="Item name" className={inp(errors[`item.${i}.name`])}
                         value={item.name} onChange={e => updateItem(i, 'name', e.target.value)} />
                     </div>
-                    {/* Qty / Price / Total / Delete — row on mobile */}
                     <div className="grid grid-cols-[64px_100px_1fr_24px] lg:contents gap-4 items-center">
                       <div>
                         <label className="lg:hidden text-[11px] text-[#7E88C3] mb-1 block">Qty.</label>
-                        <input aria-label="Quantity" type="number" min={1} className={inp(errors[`item.${i}.qty`])}
+                        <input aria-label="Quantity" type="number" min={1} className={`${inp(errors[`item.${i}.qty`])} cursor-pointer`}
                           value={item.quantity} onChange={e => updateItem(i, 'quantity', Number(e.target.value))} />
                       </div>
                       <div>
@@ -246,14 +372,14 @@ export default function InvoiceForm({ initial, onSave, onSaveDraft, onClose }: P
               </div>
 
               <button onClick={() => setItems(p => [...p, emptyItem()])}
-                className="mt-16 lg:mt-6 w-full py-4 rounded-full bg-[#F9FAFE] dark:bg-[#252945] text-[#7E88C3] dark:text-[#DFE3FA] font-bold text-sm hover:bg-[#DFE3FA] dark:hover:bg-[#0C0E16] transition-colors">
+                className="mt-20 lg:mt-10 w-full py-4 rounded-full bg-[#F9FAFE] dark:bg-[#252945] text-[#7E88C3] dark:text-[#DFE3FA] font-bold text-sm hover:bg-[#DFE3FA] dark:hover:bg-[#0C0E16] transition-colors">
                 + Add New Item
               </button>
             </section>
           </div>
         </div>
 
-        <div className={`mt-8 px-6 lg:px-14 py-8 bg-white dark:bg-[#141625] transition-shadow ${scrolled ? 'shadow-[0_-8px_24px_rgba(0,0,0,0.1)]' : ''} flex items-center gap-2`}>
+        <div className="mt-15 px-6 lg:px-14 py-8 bg-white dark:bg-[#141625] shadow-[0_-16px_48px_rgba(0,0,0,0.15)] flex items-center gap-2">
           {!initial ? (
             <>
               <button onClick={onClose}
